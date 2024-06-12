@@ -54,7 +54,7 @@ enum HeaderFrameKind {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct EszipV2Modules(Arc<Mutex<LinkedHashMap<String, EszipV2Module>>>);
+pub struct EszipV2Modules(pub Arc<Mutex<LinkedHashMap<String, EszipV2Module>>>);
 
 impl EszipV2Modules {
   pub(crate) async fn get_module_source<'a>(
@@ -178,23 +178,23 @@ impl EszipV2Modules {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Options {
+pub struct Options {
   /// Hash Function used to checksum the contents of the eszip when encoding/decoding
   ///
   /// If the eszip does not include the option, it defaults to `[Checksum::NoChecksum]` in >=v2.2
   /// and `[Checksum::Sha256]` in older versions.  It is `None` when the eszip header includes a
   /// checksum that this version of the library does not know.
-  checksum: Option<Checksum>,
+  pub checksum: Option<Checksum>,
 
   /// Size in Bytes of the hash function digest.
   ///
   /// Defaults to the known length of the configured hash function. Useful in order to ensure forwards compatibility,
   /// otherwise the parser does not know how many bytes to read.
-  checksum_size: Option<u8>,
+  pub checksum_size: Option<u8>,
 }
 
 impl Options {
-  fn default_for_version(magic: &[u8; 8]) -> Self {
+  pub fn default_for_version(magic: &[u8; 8]) -> Self {
     let defaults = Self {
       checksum: Some(Checksum::NoChecksum),
       checksum_size: Default::default(),
@@ -224,7 +224,7 @@ impl Options {
   /// If the eszip has an explicit digest size, returns that. Otherwise, returns
   /// the default digest size of the [`Self::checksum`]. If the eszip
   /// does not have either, returns `None`.
-  fn checksum_size(self) -> Option<u8> {
+  pub fn checksum_size(self) -> Option<u8> {
     self
       .checksum_size
       .or_else(|| Some(self.checksum?.digest_size()))
@@ -558,7 +558,7 @@ pub enum Checksum {
 }
 
 impl Checksum {
-  const fn digest_size(self) -> u8 {
+  pub const fn digest_size(self) -> u8 {
     match self {
       Self::NoChecksum => 0,
       #[cfg(feature = "sha256")]
@@ -568,7 +568,7 @@ impl Checksum {
     }
   }
 
-  fn from_u8(discriminant: u8) -> Option<Self> {
+  pub fn from_u8(discriminant: u8) -> Option<Self> {
     Some(match discriminant {
       0 => Self::NoChecksum,
       #[cfg(feature = "sha256")]
@@ -578,7 +578,7 @@ impl Checksum {
       _ => return None,
     })
   }
-  fn hash(
+  pub fn hash(
     self,
     #[cfg_attr(
       not(any(feature = "sha256", feature = "xxhash3")),
@@ -602,9 +602,9 @@ impl Checksum {
 /// source maps.
 #[derive(Debug, Default)]
 pub struct EszipV2 {
-  modules: EszipV2Modules,
-  npm_snapshot: Option<ValidSerializedNpmResolutionSnapshot>,
-  options: Options,
+  pub modules: EszipV2Modules,
+  pub npm_snapshot: Option<ValidSerializedNpmResolutionSnapshot>,
+  pub options: Options,
 }
 
 #[derive(Debug)]
@@ -1656,7 +1656,7 @@ impl IntoIterator for EszipV2 {
   }
 }
 
-async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
+pub async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
   reader: &mut futures::io::BufReader<R>,
   options: Options,
   npm_specifiers: HashMap<String, EszipNpmPackageIndex>,
@@ -1742,7 +1742,7 @@ async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct EszipNpmPackageIndex(u32);
+pub struct EszipNpmPackageIndex(pub u32);
 
 impl EszipNpmPackageIndex {
   pub fn parse(input: &[u8]) -> std::io::Result<(&[u8], Self)> {
@@ -1818,12 +1818,12 @@ fn move_bytes(
 }
 
 #[derive(Debug)]
-struct Section(Vec<u8>, Options);
+pub struct Section(Vec<u8>, Options);
 
 impl Section {
   /// Reads a section that's defined as:
   ///   Size (4) | Body (n) | Hash (32)
-  async fn read<R: futures::io::AsyncRead + Unpin>(
+  pub async fn read<R: futures::io::AsyncRead + Unpin>(
     mut reader: R,
     options: Options,
   ) -> Result<Section, ParseError> {
@@ -1834,7 +1834,7 @@ impl Section {
   /// Reads a section that's defined as:
   ///   Body (n) | Hash (32)
   /// Where the `n` size is provided.
-  async fn read_with_size<R: futures::io::AsyncRead + Unpin>(
+  pub async fn read_with_size<R: futures::io::AsyncRead + Unpin>(
     mut reader: R,
     options: Options,
     len: usize,
@@ -1848,29 +1848,29 @@ impl Section {
     Ok(Section(body_and_checksum, options))
   }
 
-  fn content(&self) -> &[u8] {
+  pub fn content(&self) -> &[u8] {
     &self.0[..self.content_len()]
   }
 
-  fn into_content(mut self) -> Vec<u8> {
+  pub fn into_content(mut self) -> Vec<u8> {
     self.0.truncate(self.content_len());
     self.0
   }
 
-  fn content_len(&self) -> usize {
+  pub fn content_len(&self) -> usize {
     self.total_len()
       - self.1.checksum_size().expect("Checksum size must be known") as usize
   }
 
-  fn total_len(&self) -> usize {
+  pub fn total_len(&self) -> usize {
     self.0.len()
   }
 
-  fn checksum_hash(&self) -> &[u8] {
+  pub fn checksum_hash(&self) -> &[u8] {
     &self.0[self.content_len()..]
   }
 
-  fn is_checksum_valid(&self) -> bool {
+  pub fn is_checksum_valid(&self) -> bool {
     let Some(checksum) = self.1.checksum else {
       // degrade to not checksuming
       return true;
