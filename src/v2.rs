@@ -46,7 +46,7 @@ enum HeaderFrameKind {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct EszipV2Modules(Arc<Mutex<LinkedHashMap<String, EszipV2Module>>>);
+pub struct EszipV2Modules(pub Arc<Mutex<LinkedHashMap<String, EszipV2Module>>>);
 
 impl EszipV2Modules {
   pub(crate) async fn get_module_source<'a>(
@@ -173,8 +173,8 @@ impl EszipV2Modules {
 /// source maps.
 #[derive(Debug, Default)]
 pub struct EszipV2 {
-  modules: EszipV2Modules,
-  npm_snapshot: Option<ValidSerializedNpmResolutionSnapshot>,
+  pub modules: EszipV2Modules,
+  pub npm_snapshot: Option<ValidSerializedNpmResolutionSnapshot>,
 }
 
 #[derive(Debug)]
@@ -947,7 +947,7 @@ impl IntoIterator for EszipV2 {
   }
 }
 
-async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
+pub async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
   reader: &mut futures::io::BufReader<R>,
   npm_specifiers: HashMap<String, EszipNpmPackageIndex>,
 ) -> Result<Option<ValidSerializedNpmResolutionSnapshot>, ParseError> {
@@ -1030,7 +1030,7 @@ async fn read_npm_section<R: futures::io::AsyncRead + Unpin>(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct EszipNpmPackageIndex(u32);
+pub struct EszipNpmPackageIndex(pub u32);
 
 impl EszipNpmPackageIndex {
   pub fn parse(input: &[u8]) -> std::io::Result<(&[u8], Self)> {
@@ -1105,12 +1105,12 @@ fn move_bytes(
   }
 }
 
-struct HashedSection(Vec<u8>);
+pub struct HashedSection(Vec<u8>);
 
 impl HashedSection {
   /// Reads a section that's defined as:
   ///   Size (4) | Body (n) | Hash (32)
-  async fn read<R: futures::io::AsyncRead + Unpin>(
+  pub async fn read<R: futures::io::AsyncRead + Unpin>(
     reader: &mut futures::io::BufReader<R>,
   ) -> Result<HashedSection, ParseError> {
     let len = read_u32(reader).await? as usize;
@@ -1120,7 +1120,7 @@ impl HashedSection {
   /// Reads a section that's defined as:
   ///   Body (n) | Hash (32)
   /// Where the `n` size is provided.
-  async fn read_with_size<R: futures::io::AsyncRead + Unpin>(
+  pub async fn read_with_size<R: futures::io::AsyncRead + Unpin>(
     reader: &mut futures::io::BufReader<R>,
     len: usize,
   ) -> Result<HashedSection, ParseError> {
@@ -1130,19 +1130,19 @@ impl HashedSection {
     Ok(HashedSection(body_and_hash))
   }
 
-  fn bytes(&self) -> &[u8] {
+  pub fn bytes(&self) -> &[u8] {
     &self.0[..self.len()]
   }
 
-  fn len(&self) -> usize {
+  pub fn len(&self) -> usize {
     self.0.len() - 32
   }
 
-  fn hash(&self) -> &[u8] {
+  pub fn hash(&self) -> &[u8] {
     &self.0[self.len()..]
   }
 
-  fn hash_valid(&self) -> bool {
+  pub fn hash_valid(&self) -> bool {
     let mut hasher = Sha256::new();
     hasher.update(self.bytes());
     let actual_hash = hasher.finalize();
