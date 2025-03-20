@@ -47,7 +47,7 @@ const ESZIP_V2_3_MAGIC: &[u8; 8] = b"ESZIP2.3";
 const LATEST_VERSION: EszipVersion = EszipVersion::V2_3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-pub(crate) enum EszipVersion {
+pub enum EszipVersion {
   // these numbers are just for ordering
   V2 = 0,
   V2_1 = 1,
@@ -1551,8 +1551,9 @@ impl EszipV2 {
           }
           Ok(None)
         }
-        | deno_graph::Module::External(_)
-        | deno_graph::Module::Node(_) => Ok(None),
+        deno_graph::Module::External(_) | deno_graph::Module::Node(_) => {
+          Ok(None)
+        }
       }
     }
 
